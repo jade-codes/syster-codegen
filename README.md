@@ -1,77 +1,126 @@
 # syster-codegen
 
-Code generator for SysML v2 tooling from OMG Ecore metamodels.
+Parser generator for SysML v2 / KerML from KEBNF grammar files.
 
 ## Overview
 
-This crate reads the official OMG SysML v2 metamodel (in Ecore format) and generates:
+This crate reads KEBNF grammar files (derived from the OMG SysML v2 spec) and generates:
 
-- **`syntax_kind.rs`** - `MetaKind` enum with XMI type mappings, keywords, definition/usage helpers
-- **`symbol_kind.rs`** - `SymbolKind` enum for HIR symbol classification
-- **`ast_nodes.rs`** - AST node structs and enumerations from metamodel classes
-- **`visitor.rs`** - Visitor trait for AST traversal
+- **Lexer** - Token definitions and lexer implementation
+- **Parser** - Recursive descent parser with GLR-style backtracking
+- **AST** - Typed AST node structs and enums
+- **Test Suite** - Synthesized test cases from grammar rules
 
 ## Architecture
 
 ```
 data/
-└── SysML.ecore        # Official OMG SysML metamodel (includes KerML)
+├── KerML-textual-bnf.kebnf   # KerML grammar (core language)
+└── SysML-textual-bnf.kebnf   # SysML grammar (extends KerML)
         │
         ▼
 ┌─────────────────┐
-│ Metamodel Parser │    Parse Ecore XML into internal representation
+│  KEBNF Parser   │    Parse grammar into rule definitions
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│   Metamodel     │    MetaClass, MetaProperty, MetaEnumeration
-│   Data Model    │    Inheritance hierarchy, documentation
+│   Generators    │
+│  ├── lexer      │    → Token enum, Lexer impl
+│  ├── parser     │    → Recursive descent with backtracking
+│  ├── ast        │    → Typed AST nodes
+│  └── test_synth │    → Synthesized test cases
 └────────┬────────┘
          │
          ▼
-┌─────────────────┐
-│   Generators    │    Tera template-based code generation
-│  ├── syntax_kind│    → MetaKind enum, helpers
-│  ├── symbol_kind│    → SymbolKind enum
-│  ├── ast_nodes  │    → structs, enums from metamodel
-│  └── visitor    │    → Visitor trait
-└────────┬────────┘
-         │
-         ▼
-    syster-base/src/generated/
+    generated/
+    ├── common/           # Shared types (Span, SyntaxKind)
+    ├── kerml/            # KerML lexer, parser, AST
+    └── sysml/            # SysML lexer, parser, AST
 ```
 
-## Usage
+## Commands
+
+### Generate Parser
+
+Generate lexer, parser, and AST from both grammar files:
 
 ```bash
-# Generate all code (default output: ../syster-base/src/generated)
-cargo run -- generate --metamodel data/SysML.ecore
-
-# Generate to custom location
-cargo run -- generate --metamodel data/SysML.ecore --output /path/to/output
-
-# Inspect metamodel
-cargo run -- inspect data/SysML.ecore
-cargo run -- inspect data/SysML.ecore | grep Definition
+cargo run -- generate \
+  --kerml data/KerML-textual-bnf.kebnf \
+  --sysml data/SysML-textual-bnf.kebnf \
+  --output generated
 ```
 
-## Metamodel Source
+### Generate Tests
 
-The Ecore metamodel is from the official OMG SysML v2 Pilot Implementation:
-https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/tree/master/org.omg.sysml/model
+Synthesize test cases from grammar rules:
 
-To update:
 ```bash
-curl -L "https://raw.githubusercontent.com/Systems-Modeling/SysML-v2-Pilot-Implementation/master/org.omg.sysml/model/SysML.ecore" -o data/SysML.ecore
+cargo run -- generate-tests \
+  --kerml data/KerML-textual-bnf.kebnf \
+  --sysml data/SysML-textual-bnf.kebnf \
+  --output tests/parser_test_data.rs
+```
+
+This generates:
+- `parser_test_data.rs` - Positive parse test inputs
+- `negative_test_data.rs` - Invalid inputs that should fail
+- `lexer_test_data.rs` - Lexer token tests
+- `parser_test_runner.rs` - Test harness for parser
+- `parser_ast_test.rs` - AST construction tests
+- `ast_test.rs` - AST node tests
+- `negative_test.rs` - Negative test runner
+- `lexer_test.rs` - Lexer test runner
+
+### Show Grammar Stats
+
+Display statistics about grammar files:
+
+```bash
+cargo run -- stats \
+  --grammar data/KerML-textual-bnf.kebnf \
+  --grammar data/SysML-textual-bnf.kebnf
+```
+
+### Legacy Generate (Single Grammar)
+
+Generate from a single merged grammar file:
+
+```bash
+cargo run -- generate-legacy \
+  --grammar data/merged.kebnf \
+  --output generated
 ```
 
 ## Development
 
 ```bash
-# Run tests
+# Run all tests
 cargo test
 
-# Regenerate and check syster-base compiles
-cargo run -- generate --metamodel data/SysML.ecore
-(cd ../syster-base && cargo check)
+# Run tests in release mode (faster)
+cargo test --release
+
+# Regenerate parser and tests
+cargo run -- generate \
+  --kerml data/KerML-textual-bnf.kebnf \
+  --sysml data/SysML-textual-bnf.kebnf \
+  --output generated
+
+cargo run -- generate-tests \
+  --kerml data/KerML-textual-bnf.kebnf \
+  --sysml data/SysML-textual-bnf.kebnf
 ```
+
+## Grammar Source
+
+The KEBNF grammar files are derived from the official OMG SysML v2 specification:
+https://github.com/Systems-Modeling/SysML-v2-Release
+
+Grammar files in `data/` are licensed under LGPL v3.0 (see `data/LICENSE`).
+
+## License
+
+- Code: MIT License (see `LICENSE`)
+- Grammar files (`data/`): LGPL v3.0 (see `data/LICENSE`)
