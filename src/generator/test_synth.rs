@@ -668,24 +668,17 @@ fn synthesize_pairwise_containers(
 ) -> Vec<TestCase> {
     let mut cases = Vec::new();
     
-    // Container rules: rules with body elements that can have many alternatives
-    // Map: body rule -> (child element rule, brace template)
-    // Template uses {} as placeholder for the content
-    let container_rules: Vec<(&str, &str, &str)> = vec![
-        ("PackageBody", "PackageBodyElement", "{ {} }"),
-        ("NamespaceBody", "NamespaceBodyElement", "{ {} }"),
-        ("TypeBody", "TypeBodyElement", "{ {} }"),
-        ("DefinitionBody", "DefinitionBodyItem", "{ {} }"),
-        ("UsageBody", "UsageBodyItem", "{ {} }"),
-    ];
+    // Dynamically detect container rules: rules with `'{' ... Element* '}'` pattern
+    // These are "body" rules that contain repetitions of child elements with alternatives
+    let container_rules = detect_container_rules(rule_map);
     
     for (rule_name, child_rule, template) in &container_rules {
-        if !sorted.iter().any(|s| s == *rule_name) {
+        if !sorted.iter().any(|s| s == rule_name) {
             continue;
         }
         
         // Get the child rule and its alternatives
-        let child_def = match rule_map.get(*child_rule) {
+        let child_def = match rule_map.get(child_rule.as_str()) {
             Some(r) => r,
             None => continue,
         };
@@ -731,19 +724,16 @@ fn synthesize_pairwise_containers(
         }
     }
     
-    // Also generate pairwise tests for Package with different DefinitionElement/UsageElement types
-    // This tests combinations like: Package containing PartDefinition + CaseDefinition
-    let deep_pairwise_rules: Vec<(&str, &str, &str)> = vec![
-        ("Package", "DefinitionElement", "package a1 {{ {} }}"),
-        ("Package", "UsageElement", "package a1 {{ {} }}"),
-    ];
+    // Also generate pairwise tests for rules that reference element types with many alternatives
+    // These are found by detecting rules containing references to multi-alternative element rules
+    let deep_pairwise_rules = detect_deep_pairwise_rules(rule_map, inputs, grammar_rules);
     
     for (parent_rule, element_rule, template) in &deep_pairwise_rules {
-        if !sorted.iter().any(|s| s == *parent_rule) {
+        if !sorted.iter().any(|s| s == parent_rule) {
             continue;
         }
         
-        let element_def = match rule_map.get(*element_rule) {
+        let element_def = match rule_map.get(element_rule.as_str()) {
             Some(r) => r,
             None => continue,
         };
@@ -805,6 +795,195 @@ fn synthesize_pairwise_containers(
     }
     
     cases
+}
+
+/// Detect container rules dynamically from the grammar.
+/// 
+/// Container rules have the pattern: `';' | '{' ChildElement* '}'`
+/// Returns tuples of (rule_name, child_element_rule, template)
+fn detect_container_rules<'a>(
+    rule_map: &'a HashMap<&'a str, &'a crate::kebnf::types::Rule>,
+) -> Vec<(String, String, String)> {
+    let mut containers = Vec::new();
+    
+    for (name, rule) in rule_map {
+        // Look for rules with alternatives containing braced repetitions
+        if let Some((child_rule, template)) = find_braced_repetition(&rule.body, rule_map) {
+            // Verify the child rule has multiple alternatives (worth testing pairwise)
+            if let Some(child_def) = rule_map.get(child_rule.as_str()) {
+                let alts = get_top_level_alternatives(&child_def.body);
+                if alts.len() > 1 {
+                    containers.push((name.to_string(), child_rule, template));
+                }
+            }
+        }
+    }
+    
+    containers
+}
+
+/// Find a braced repetition pattern in a rule body.
+/// Returns (child_rule_name, template) if found.
+/// 
+/// Matches patterns like: `'{' ChildRule* '}'` or `'{' ChildRule+ '}'`
+fn find_braced_repetition(
+    body: &RuleBody,
+    _rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+) -> Option<(String, String)> {
+    match body {
+        RuleBody::Alternative(alts) => {
+            // Check each alternative for the braced pattern
+            for alt in alts {
+                if let Some(result) = find_braced_repetition(alt, _rule_map) {
+                    return Some(result);
+                }
+            }
+            None
+        }
+        RuleBody::Sequence(items) => {
+            // Look for: '{' ... Element* ... '}'
+            let has_open = items.iter().any(|i| matches!(i, RuleBody::Keyword(k) if k == "{"));
+            let has_close = items.iter().any(|i| matches!(i, RuleBody::Keyword(k) if k == "}"));
+            
+            if has_open && has_close {
+                // Find the repetition inside
+                for item in items {
+                    if let Some(child) = extract_repetition_child(item) {
+                        return Some((child, "{ {} }".to_string()));
+                    }
+                }
+            }
+            None
+        }
+        RuleBody::Group(inner) => find_braced_repetition(inner, _rule_map),
+        _ => None,
+    }
+}
+
+/// Extract the child rule name from a ZeroOrMore or OneOrMore repetition.
+fn extract_repetition_child(body: &RuleBody) -> Option<String> {
+    match body {
+        RuleBody::ZeroOrMore(inner) | RuleBody::OneOrMore(inner) => {
+            extract_rule_ref(inner)
+        }
+        RuleBody::Group(inner) => extract_repetition_child(inner),
+        RuleBody::Assignment { value, .. } => extract_repetition_child(value),
+        _ => None,
+    }
+}
+
+/// Extract a direct rule reference name from a body.
+fn extract_rule_ref(body: &RuleBody) -> Option<String> {
+    match body {
+        RuleBody::RuleRef(name) if !is_lexer_terminal(name) => Some(name.clone()),
+        RuleBody::Group(inner) => extract_rule_ref(inner),
+        RuleBody::Assignment { value, .. } => extract_rule_ref(value),
+        _ => None,
+    }
+}
+
+/// Detect rules that reference element types with many alternatives.
+/// These are good candidates for deep pairwise testing.
+/// 
+/// Returns tuples of (parent_rule, element_rule, template)
+fn detect_deep_pairwise_rules(
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    inputs: &HashMap<String, String>,
+    _grammar_rules: &HashSet<&str>,
+) -> Vec<(String, String, String)> {
+    let mut results = Vec::new();
+    
+    // Find rules that:
+    // 1. Are "top-level" constructs (Package, Definition, Usage patterns)
+    // 2. Reference element rules with many alternatives
+    
+    // Check Package-like rules that contain element references
+    for (name, rule) in rule_map {
+        // Skip body rules (already handled by container detection)
+        if name.ends_with("Body") || name.ends_with("Item") || name.ends_with("Element") {
+            continue;
+        }
+        
+        // Find references to multi-alternative element rules
+        let element_refs = find_element_references(&rule.body, rule_map);
+        
+        for element_rule in element_refs {
+            if let Some(element_def) = rule_map.get(element_rule.as_str()) {
+                let alts = get_top_level_alternatives(&element_def.body);
+                // Only worth pairwise testing if there are many alternatives
+                if alts.len() >= 5 {
+                    // Build a template using minimal synthesis of this rule
+                    // with a placeholder for the element content
+                    let base = inputs.get(*name).cloned().unwrap_or_default();
+                    if base.contains('{') && base.contains('}') {
+                        // Extract the braced part and use it as template
+                        let template = format!("{} a1 {{{{ {{}} }}}}", 
+                            extract_keyword_prefix(&rule.body).unwrap_or_default());
+                        if !template.trim().is_empty() {
+                            results.push((name.to_string(), element_rule, template));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    results
+}
+
+/// Find references to element-type rules (rules ending in "Element") in a body.
+fn find_element_references(
+    body: &RuleBody,
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+) -> Vec<String> {
+    let mut refs = Vec::new();
+    collect_element_references(body, rule_map, &mut refs);
+    refs
+}
+
+fn collect_element_references(
+    body: &RuleBody,
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    out: &mut Vec<String>,
+) {
+    match body {
+        RuleBody::RuleRef(name) if name.ends_with("Element") && rule_map.contains_key(name.as_str()) => {
+            if !out.contains(name) {
+                out.push(name.clone());
+            }
+        }
+        RuleBody::Sequence(items) => {
+            for item in items {
+                collect_element_references(item, rule_map, out);
+            }
+        }
+        RuleBody::Alternative(alts) => {
+            for alt in alts {
+                collect_element_references(alt, rule_map, out);
+            }
+        }
+        RuleBody::Optional(inner)
+        | RuleBody::ZeroOrMore(inner)
+        | RuleBody::OneOrMore(inner)
+        | RuleBody::Group(inner) => {
+            collect_element_references(inner, rule_map, out);
+        }
+        RuleBody::Assignment { value, .. } | RuleBody::BoolAssign { value, .. } => {
+            collect_element_references(value, rule_map, out);
+        }
+        _ => {}
+    }
+}
+
+/// Extract the leading keyword from a rule body (e.g., "package" from Package).
+fn extract_keyword_prefix(body: &RuleBody) -> Option<String> {
+    match body {
+        RuleBody::Keyword(kw) => Some(kw.clone()),
+        RuleBody::Sequence(items) => items.first().and_then(extract_keyword_prefix),
+        RuleBody::Group(inner) => extract_keyword_prefix(inner),
+        RuleBody::Assignment { value, .. } => extract_keyword_prefix(value),
+        _ => None,
+    }
 }
 
 /// Generate pairwise indices for n elements.
@@ -1264,7 +1443,7 @@ fn synthesize_all_alternatives(
         }
         RuleBody::Group(inner) => synthesize_all_alternatives(inner, inputs, grammar_rules),
         RuleBody::Assignment { value, .. } => synthesize_all_alternatives(value, inputs, grammar_rules),
-        RuleBody::Sequence(items) => {
+        RuleBody::Sequence(_) => {
             // For sequences containing alternatives, find the alternative part and expand
             // e.g., (',' Name)* should produce: , a1, , a2 
             // But simpler: just produce 2-3 instances

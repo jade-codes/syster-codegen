@@ -5,7 +5,7 @@
 use crate::kebnf::Grammar;
 use super::ast::extract_ast_nodes;
 use super::merged::MergedTypes;
-use super::utils::to_pascal_case;
+
 
 /// Generate SyntaxKind from merged types (for common/ module)
 pub fn generate_from_merged(merged: &MergedTypes) -> String {
