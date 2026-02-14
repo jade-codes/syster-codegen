@@ -23,20 +23,21 @@ data/
 │  KEBNF Parser   │    Parse grammar into rule definitions
 └────────┬────────┘
          │
-         ▼
-┌─────────────────┐
-│   Generators    │
-│  ├── lexer      │    → Token enum, Lexer impl
-│  ├── parser     │    → Recursive descent with backtracking
-│  ├── ast        │    → Typed AST nodes
-│  └── test_synth │    → Synthesized test cases
-└────────┬────────┘
-         │
-         ▼
-    generated/
-    ├── common/           # Shared types (Span, SyntaxKind)
-    ├── kerml/            # KerML lexer, parser, AST
-    └── sysml/            # SysML lexer, parser, AST
+         ├──────────────────────────────┐
+         ▼                              ▼
+┌─────────────────┐            ┌─────────────────┐
+│   Generators    │            │   Test Synth    │
+│  ├── lexer      │            │  ├── positive   │  → Valid inputs
+│  ├── parser     │            │  ├── negative   │  → Invalid inputs
+│  ├── ast        │            │  └── lexer      │  → Token tests
+│  └── tokens     │            └────────┬────────┘
+└────────┬────────┘                     │
+         │                              ▼
+         ▼                         tests/
+    generated/                     ├── parser_test_data.rs
+    ├── common/                    ├── negative_test_data.rs
+    ├── kerml/                     ├── lexer_test_data.rs
+    └── sysml/                     └── *_test.rs (runners)
 ```
 
 ## Commands
