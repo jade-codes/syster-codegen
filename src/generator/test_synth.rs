@@ -897,7 +897,135 @@ fn synthesize_single_element_body_tests(
         }
     }
     
+    // 3. Generate body variant tests for definition/usage rules
+    // Tests both `part def a1;` AND `part def a1 { }`
+    cases.extend(synthesize_body_variant_tests(sorted, rule_map, grammar_rules, inputs));
+    
     cases
+}
+
+/// Generate tests for body variants (semicolon vs braced).
+/// 
+/// For rules that end with a body rule having `';' | '{' ... '}'` alternatives,
+/// generate tests for both forms.
+fn synthesize_body_variant_tests(
+    sorted: &[String],
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    _grammar_rules: &HashSet<&str>,
+    inputs: &HashMap<String, String>,
+) -> Vec<TestCase> {
+    let mut cases = Vec::new();
+    
+    // Valid body rules that have semicolon and braced alternatives
+    let valid_body_rules: HashSet<&str> = [
+        "DefinitionBody", "UsageBody", "NamespaceBody", "TypeBody",
+    ].into_iter().collect();
+    
+    for rule_name in sorted {
+        let rule = match rule_map.get(rule_name.as_str()) {
+            Some(r) => r,
+            None => continue,
+        };
+        
+        // Skip body rules themselves
+        if rule_name.ends_with("Body") || rule_name.ends_with("Item") || rule_name.ends_with("Element") {
+            continue;
+        }
+        
+        // Find the actual body rule this rule ends with
+        let body_rule = find_body_rule_for_rule(&rule.body, rule_map, &valid_body_rules);
+        if body_rule.is_none() {
+            continue;
+        }
+        
+        // Get the minimal input for this rule
+        let minimal_input = match inputs.get(rule_name) {
+            Some(i) => i,
+            None => continue,
+        };
+        
+        // If it ends with `;`, generate a `{ }` variant
+        if minimal_input.ends_with(';') {
+            let braced = minimal_input.strip_suffix(';').unwrap().to_string() + " { }";
+            let dispatch_key = to_snake_case(rule_name);
+            
+            cases.push(TestCase {
+                rule_name: rule_name.clone(),
+                dispatch_key: dispatch_key.clone(),
+                input: braced.clone(),
+                alt_index: None,
+                rep_mode: RepMode::Populated,
+                child_alts: vec![],
+            });
+            
+            // Also generate with some content inside
+            let with_content = minimal_input.strip_suffix(';').unwrap().to_string() + " { /* doc */ }";
+            cases.push(TestCase {
+                rule_name: rule_name.clone(),
+                dispatch_key,
+                input: with_content,
+                alt_index: None,
+                rep_mode: RepMode::Populated,
+                child_alts: vec![],
+            });
+        }
+    }
+    
+    cases
+}
+
+/// Find the body rule that a rule ends with by traversing rule references.
+fn find_body_rule_for_rule(
+    body: &RuleBody,
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    valid_body_rules: &HashSet<&str>,
+) -> Option<String> {
+    let last_ref = find_last_rule_ref(body, rule_map)?;
+    
+    // Direct match
+    if valid_body_rules.contains(last_ref.as_str()) {
+        return Some(last_ref);
+    }
+    
+    // Check one level deeper
+    if let Some(rule) = rule_map.get(last_ref.as_str()) {
+        if let Some(deeper_ref) = find_last_rule_ref(&rule.body, rule_map) {
+            if valid_body_rules.contains(deeper_ref.as_str()) {
+                return Some(deeper_ref);
+            }
+            // Check two levels deeper for chains like PartDefinition -> Definition -> DefinitionBody
+            if let Some(deeper_rule) = rule_map.get(deeper_ref.as_str()) {
+                if let Some(deepest_ref) = find_last_rule_ref(&deeper_rule.body, rule_map) {
+                    if valid_body_rules.contains(deepest_ref.as_str()) {
+                        return Some(deepest_ref);
+                    }
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Find the last rule reference in a body (typically the body rule).
+fn find_last_rule_ref(body: &RuleBody, rule_map: &HashMap<&str, &crate::kebnf::types::Rule>) -> Option<String> {
+    match body {
+        RuleBody::Sequence(items) => {
+            // Return the last rule reference in the sequence
+            for item in items.iter().rev() {
+                if let Some(r) = find_last_rule_ref(item, rule_map) {
+                    return Some(r);
+                }
+            }
+            None
+        }
+        RuleBody::RuleRef(name) if !is_lexer_terminal(name) && rule_map.contains_key(name.as_str()) => {
+            Some(name.clone())
+        }
+        RuleBody::Group(inner) => find_last_rule_ref(inner, rule_map),
+        RuleBody::Assignment { value, .. } => find_last_rule_ref(value, rule_map),
+        _ => None,
+    }
 }
 
 /// Detect deep element rules for each body rule.
