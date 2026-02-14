@@ -432,11 +432,14 @@ pub fn synthesize_with_base(
     }
     
     // Add pairwise combination tests for container rules
+    // Build minimal inputs for clean syntax (e.g., `part def test;` instead of full prefixes)
+    let inputs_minimal = build_minimal_inputs(&sorted, &scc_map, &rule_map, &grammar_rules, base_inputs);
+    
     let pairwise_cases = synthesize_pairwise_containers(
         &sorted,
         &rule_map,
         &grammar_rules,
-        &inputs_populated,
+        &inputs_minimal,
     );
     cases.extend(pairwise_cases);
     
@@ -544,6 +547,67 @@ fn build_varied_inputs(
     inputs
 }
 
+/// Build a truly minimal inputs map.
+/// Uses RepMode::Minimal throughout so optionals are absent and repetitions are minimal.
+/// This produces clean syntax like `part def test;` instead of full verbose syntax.
+fn build_minimal_inputs(
+    sorted: &[String],
+    scc_map: &HashMap<String, usize>,
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    grammar_rules: &HashSet<&str>,
+    base_inputs: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut inputs: HashMap<String, String> = base_inputs.clone();
+    
+    // Force Identification to have a name (even though it's optional in grammar)
+    // This produces cleaner test inputs like `part def test;` instead of `part def;`
+    inputs.insert("Identification".to_string(), "a1".to_string());
+    
+    // Group SCC rules
+    let mut scc_groups: HashMap<usize, Vec<String>> = HashMap::new();
+    for (name, &scc_id) in scc_map {
+        scc_groups.entry(scc_id).or_default().push(name.clone());
+    }
+    let mut processed_sccs: HashSet<usize> = HashSet::new();
+    
+    for rule_name in sorted {
+        // Skip Identification - we've already set it
+        if rule_name == "Identification" {
+            continue;
+        }
+        
+        if let Some(&scc_id) = scc_map.get(rule_name) {
+            if processed_sccs.contains(&scc_id) { continue; }
+            processed_sccs.insert(scc_id);
+            let members = &scc_groups[&scc_id];
+            for name in members {
+                inputs.insert(name.clone(), "a1".to_string());
+            }
+            // Fixed-point iteration for SCCs
+            loop {
+                let mut changed = false;
+                for name in members {
+                    if let Some(rule) = rule_map.get(name.as_str()) {
+                        // Use Minimal mode - optionals absent, repetitions minimal
+                        let input = synthesize_body(&rule.body, &inputs, grammar_rules, RepMode::Minimal);
+                        if inputs.get(name).map_or(true, |prev| *prev != input) {
+                            changed = true;
+                            inputs.insert(name.clone(), input);
+                        }
+                    }
+                }
+                if !changed { break; }
+            }
+        } else if let Some(rule) = rule_map.get(rule_name.as_str()) {
+            // Use Minimal mode for clean syntax
+            let input = synthesize_body(&rule.body, &inputs, grammar_rules, RepMode::Minimal);
+            inputs.insert(rule_name.clone(), input);
+        }
+    }
+    
+    inputs
+}
+
 /// Fix ambiguous inputs by using distinct identifiers.
 /// 
 /// Some rules produce inputs that are lexically ambiguous when combined.
@@ -631,9 +695,9 @@ fn synthesize_pairwise_containers(
             continue;
         }
         
-        // Generate inputs for each alternative
+        // Generate MINIMAL inputs for each alternative (clean syntax)
         let alt_inputs: Vec<String> = child_alts.iter()
-            .map(|alt| synthesize_body(alt, inputs, grammar_rules, RepMode::Populated))
+            .map(|alt| synthesize_body(alt, inputs, grammar_rules, RepMode::Minimal))
             .filter(|s| !s.is_empty())
             .collect();
         
@@ -689,10 +753,10 @@ fn synthesize_pairwise_containers(
             continue;
         }
         
-        // Generate inputs for each alternative
+        // Generate MINIMAL inputs for each alternative (clean syntax like `part def test;`)
         let alt_inputs: Vec<(usize, String)> = element_alts.iter()
             .enumerate()
-            .map(|(idx, alt)| (idx, synthesize_body(alt, inputs, grammar_rules, RepMode::Populated)))
+            .map(|(idx, alt)| (idx, synthesize_body(alt, inputs, grammar_rules, RepMode::Minimal)))
             .filter(|(_, s)| !s.is_empty())
             .collect();
         
