@@ -271,6 +271,10 @@ pub fn synthesize_with_base(
     let mut inputs_varied = build_varied_inputs(&sorted, &scc_map, &rule_map, &grammar_rules, &inputs);
     fix_ambiguous_inputs(&mut inputs_varied);
     
+    // Build a truly minimal inputs map for Minimal mode tests
+    // This produces clean syntax like `part def a1;` without prefixes
+    let inputs_minimal = build_minimal_inputs(&sorted, &scc_map, &rule_map, &grammar_rules, base_inputs);
+    
     // Precompute child alternatives cache (memoized DP)
     let child_alts_cache = precompute_child_alts_cache(&rule_map);
     
@@ -301,7 +305,7 @@ pub fn synthesize_with_base(
                 for &mode in &modes {
                     // Use appropriate inputs map based on mode
                     let inputs_to_use = match mode {
-                        RepMode::Minimal => &inputs,
+                        RepMode::Minimal => &inputs_minimal,
                         RepMode::Populated | RepMode::Multiple | RepMode::Pairwise => &inputs_populated,
                         RepMode::Varied => &inputs_varied,
                     };
@@ -369,7 +373,7 @@ pub fn synthesize_with_base(
             
             for &mode in &modes {
                 let inputs_to_use = match mode {
-                    RepMode::Minimal => &inputs,
+                    RepMode::Minimal => &inputs_minimal,
                     RepMode::Populated | RepMode::Multiple | RepMode::Pairwise => &inputs_populated,
                     RepMode::Varied => &inputs_varied,
                 };
@@ -794,7 +798,233 @@ fn synthesize_pairwise_containers(
         }
     }
     
+    // Generate single-element body tests for each DefinitionElement/UsageElement alternative
+    // This creates tests like `{ part def a1; }`, `{ case def a1; }` etc.
+    cases.extend(synthesize_single_element_body_tests(sorted, rule_map, grammar_rules, inputs));
+    
     cases
+}
+
+/// Generate single-element AND pairwise combination tests for body rules.
+/// 
+/// For rules like `DefinitionBody` which contain `DefinitionBodyItem*`,
+/// this generates:
+/// 1. Single-element tests: `{ part def a1; }`, `{ case def a1; }`, etc.
+/// 2. Pairwise combinations: `{ part def a1; case def a1; }`, `{ action def a1; state def a1; }`, etc.
+fn synthesize_single_element_body_tests(
+    sorted: &[String],
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    grammar_rules: &HashSet<&str>,
+    inputs: &HashMap<String, String>,
+) -> Vec<TestCase> {
+    let mut cases = Vec::new();
+    
+    // Dynamically detect body rules and their deep element rules
+    // A "deep element rule" is a rule with many alternatives that's reachable
+    // through the body's repetition chain
+    let deep_body_rules = detect_deep_element_rules(rule_map);
+    
+    for (body_rule, element_rule) in &deep_body_rules {
+        if !sorted.iter().any(|s| s == body_rule) {
+            continue;
+        }
+        
+        // Get the element rule's alternatives
+        let element_def = match rule_map.get(element_rule.as_str()) {
+            Some(r) => r,
+            None => continue,
+        };
+        
+        let element_alts = get_top_level_alternatives(&element_def.body);
+        if element_alts.len() <= 1 {
+            continue;
+        }
+        
+        // Generate minimal inputs for each alternative
+        let alt_inputs: Vec<(usize, String)> = element_alts.iter()
+            .enumerate()
+            .map(|(idx, alt)| (idx, synthesize_body(alt, inputs, grammar_rules, RepMode::Minimal)))
+            .filter(|(_, s)| !s.is_empty())
+            .collect();
+        
+        if alt_inputs.is_empty() {
+            continue;
+        }
+        
+        let dispatch_key = to_snake_case(body_rule);
+        let mut seen = HashSet::new();
+        
+        // 1. Generate single-element tests for each alternative
+        for (alt_idx, element_input) in &alt_inputs {
+            let input = format!("{{ {} }}", element_input);
+            
+            if seen.insert(input.clone()) {
+                cases.push(TestCase {
+                    rule_name: body_rule.to_string(),
+                    dispatch_key: dispatch_key.clone(),
+                    input,
+                    alt_index: None,
+                    rep_mode: RepMode::Minimal,
+                    child_alts: vec![(element_rule.to_string(), *alt_idx)],
+                });
+            }
+        }
+        
+        // 2. Generate PAIRWISE combination tests
+        // This creates tests like `{ part def a1; case def a1; }`
+        let n = alt_inputs.len();
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let (idx_i, input_i) = &alt_inputs[i];
+                let (idx_j, input_j) = &alt_inputs[j];
+                
+                let input = format!("{{ {} {} }}", input_i, input_j);
+                
+                if seen.insert(input.clone()) {
+                    cases.push(TestCase {
+                        rule_name: body_rule.to_string(),
+                        dispatch_key: dispatch_key.clone(),
+                        input,
+                        alt_index: None,
+                        rep_mode: RepMode::Pairwise,
+                        child_alts: vec![
+                            (element_rule.to_string(), *idx_i),
+                            (element_rule.to_string(), *idx_j),
+                        ],
+                    });
+                }
+            }
+        }
+    }
+    
+    cases
+}
+
+/// Detect deep element rules for each body rule.
+/// 
+/// For body rules containing `'{' ChildItem* '}'`, finds element rules
+/// that ChildItem directly contains (through a short wrapper chain).
+/// 
+/// Returns: Vec<(body_rule_name, element_rule_name)>
+fn detect_deep_element_rules(
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+) -> Vec<(String, String)> {
+    let mut results = Vec::new();
+    let mut seen_pairs: HashSet<(String, String)> = HashSet::new();
+    
+    // Find rules that look like body rules (have braced repetitions)
+    for (name, rule) in rule_map {
+        // Extract the direct repetition child (e.g., DefinitionBodyItem from DefinitionBody)
+        let repetition_child = match extract_braced_repetition_child(&rule.body) {
+            Some(child) => child,
+            None => continue,
+        };
+        
+        // Follow the chain from repetition child to find element rules
+        // Limit depth to avoid going too far (max 3 levels deep)
+        let element_rules = find_element_rules_in_chain(&repetition_child, rule_map, 3);
+        
+        for element_rule in element_rules {
+            let pair = (name.to_string(), element_rule.clone());
+            if !seen_pairs.contains(&pair) {
+                seen_pairs.insert(pair);
+                results.push((name.to_string(), element_rule));
+            }
+        }
+    }
+    
+    results
+}
+
+/// Extract the rule name from a braced repetition pattern.
+/// For `'{' ChildItem* '}'`, returns "ChildItem".
+fn extract_braced_repetition_child(body: &RuleBody) -> Option<String> {
+    match body {
+        RuleBody::Alternative(alts) => {
+            for alt in alts {
+                if let Some(child) = extract_braced_repetition_child(alt) {
+                    return Some(child);
+                }
+            }
+            None
+        }
+        RuleBody::Sequence(items) => {
+            let has_open = items.iter().any(|i| matches!(i, RuleBody::Keyword(k) if k == "{"));
+            let has_close = items.iter().any(|i| matches!(i, RuleBody::Keyword(k) if k == "}"));
+            
+            if has_open && has_close {
+                for item in items {
+                    if let Some(child) = extract_repetition_rule(item) {
+                        return Some(child);
+                    }
+                }
+            }
+            None
+        }
+        RuleBody::Group(inner) => extract_braced_repetition_child(inner),
+        _ => None,
+    }
+}
+
+/// Extract rule name from a repetition (ZeroOrMore/OneOrMore).
+fn extract_repetition_rule(body: &RuleBody) -> Option<String> {
+    match body {
+        RuleBody::ZeroOrMore(inner) | RuleBody::OneOrMore(inner) => {
+            extract_rule_ref(inner)
+        }
+        RuleBody::Assignment { value, .. } => extract_repetition_rule(value),
+        RuleBody::Group(inner) => extract_repetition_rule(inner),
+        _ => None,
+    }
+}
+
+/// Find element rules (rules with many alternatives) in a wrapper chain.
+/// Follows ALL rule references at each level but limits total depth.
+fn find_element_rules_in_chain(
+    rule_name: &str,
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    max_depth: usize,
+) -> Vec<String> {
+    let mut results = Vec::new();
+    let mut visited: HashSet<String> = HashSet::new();
+    
+    fn search(
+        name: &str,
+        depth: usize,
+        max_depth: usize,
+        rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+        visited: &mut HashSet<String>,
+        results: &mut Vec<String>,
+    ) {
+        if depth > max_depth || visited.contains(name) {
+            return;
+        }
+        visited.insert(name.to_string());
+        
+        let rule = match rule_map.get(name) {
+            Some(r) => r,
+            None => return,
+        };
+        
+        let alts = get_top_level_alternatives(&rule.body);
+        
+        // If this rule has many alternatives (5+), it's an element rule worth testing
+        if alts.len() >= 5 {
+            results.push(name.to_string());
+            // Don't recurse further - we found our target
+            return;
+        }
+        
+        // Follow all direct rule references in this rule's body
+        for ref_name in get_direct_rule_refs(&rule.body) {
+            if !is_lexer_terminal(&ref_name) {
+                search(&ref_name, depth + 1, max_depth, rule_map, visited, results);
+            }
+        }
+    }
+    
+    search(rule_name, 0, max_depth, rule_map, &mut visited, &mut results);
+    results
 }
 
 /// Detect container rules dynamically from the grammar.
