@@ -19,7 +19,7 @@ pub mod test_synth;
 pub mod tokens;
 pub mod utils;
 
-use crate::kebnf::{Grammar, find_roots, find_leaves};
+use crate::kebnf::{Grammar, find_roots};
 use merged::MergedTypes;
 use std::collections::HashSet;
 use std::fs;
@@ -108,52 +108,6 @@ pub fn generate_all(config: &GenerateConfig) -> anyhow::Result<()> {
     // === Root mod.rs ===
     let root_mod = generate_root_mod();
     fs::write(output_dir.join("mod.rs"), root_mod)?;
-
-    Ok(())
-}
-
-/// Legacy single-grammar generate (for backwards compatibility)
-pub fn generate(grammar: &Grammar, output_dir: &Path) -> anyhow::Result<()> {
-    fs::create_dir_all(output_dir)?;
-
-    let roots = find_roots(grammar);
-    let leaves = find_leaves(grammar);
-    
-    let parser_roots: Vec<_> = roots.iter()
-        .filter(|r| !r.name.chars().all(|c| c.is_ascii_uppercase() || c == '_'))
-        .copied()
-        .collect();
-
-    println!("  Entry point rules: {}", parser_roots.len());
-    for r in parser_roots.iter().take(10) {
-        println!("    - {}", r.name);
-    }
-
-    println!("  Leaf rules (terminals): {}", leaves.len());
-
-    let tokens_code = tokens::generate(grammar);
-    fs::write(output_dir.join("tokens.rs"), tokens_code)?;
-
-    let lexer_code = lexer::generate(grammar);
-    fs::write(output_dir.join("lexer.rs"), lexer_code)?;
-
-    let ast_code = ast::generate(grammar);
-    fs::write(output_dir.join("ast.rs"), ast_code)?;
-
-    let root_names: HashSet<_> = parser_roots.iter().map(|r| r.name.as_str()).collect();
-    let parser_code = parser::generate(grammar, &root_names);
-    fs::write(output_dir.join("parser.rs"), parser_code)?;
-    
-    let ast_nodes = ast::extract_ast_nodes(grammar);
-    let with_fields = ast_nodes.iter().filter(|n| !n.fields.is_empty()).count();
-    let enums = ast_nodes.iter().filter(|n| n.is_enum).count();
-    println!("  AST nodes: {} ({} with fields, {} enums)", ast_nodes.len(), with_fields, enums);
-
-    let syntax_kind_code = syntax_kind::generate(grammar);
-    fs::write(output_dir.join("syntax_kind.rs"), syntax_kind_code)?;
-
-    let mod_code = generate_legacy_mod();
-    fs::write(output_dir.join("mod.rs"), mod_code)?;
 
     Ok(())
 }
@@ -283,24 +237,5 @@ pub mod sysml;
 
 // Re-export common types
 pub use common::{Span, ParseError, Result, SyntaxKind};
-"#.to_string()
-}
-
-fn generate_legacy_mod() -> String {
-    r#"//! Generated SysML v2 parser
-//!
-//! This code was generated from the official KEBNF grammar.
-
-pub mod ast;
-pub mod lexer;
-pub mod parser;
-pub mod syntax_kind;
-pub mod tokens;
-
-pub use ast::AstNode;
-pub use lexer::Lexer;
-pub use parser::Parser;
-pub use syntax_kind::SyntaxKind;
-pub use tokens::TokenKind;
 "#.to_string()
 }

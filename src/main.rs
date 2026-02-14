@@ -30,17 +30,6 @@ enum Commands {
         output: PathBuf,
     },
     
-    /// Generate parser from single grammar (legacy mode)
-    GenerateLegacy {
-        /// Path to KEBNF grammar file(s)
-        #[arg(short, long, required = true)]
-        grammar: Vec<PathBuf>,
-        
-        /// Output directory for generated code
-        #[arg(short, long)]
-        output: PathBuf,
-    },
-    
     /// Generate deterministic test data from grammar rules
     GenerateTests {
         /// Path to KerML KEBNF grammar file
@@ -89,26 +78,6 @@ fn main() -> anyhow::Result<()> {
                 output_dir: &output,
             };
             generator::generate_all(&config)?;
-            
-            println!("Done!");
-        }
-        
-        Commands::GenerateLegacy { grammar, output } => {
-            println!("Loading grammar files...");
-            let sources: Vec<String> = grammar.iter()
-                .map(|p| std::fs::read_to_string(p))
-                .collect::<Result<_, _>>()?;
-            
-            let source_refs: Vec<&str> = sources.iter().map(|s| s.as_str()).collect();
-            let parsed = Grammar::parse_all(&source_refs);
-            
-            println!("Parsed {} rules, {} keywords, {} punctuation symbols",
-                parsed.rules.len(),
-                parsed.keywords.len(),
-                parsed.punctuation.len());
-            
-            println!("Generating to {:?}...", output);
-            generator::generate(&parsed, &output)?;
             
             println!("Done!");
         }

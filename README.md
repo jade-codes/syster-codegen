@@ -83,16 +83,6 @@ cargo run -- stats \
   --grammar data/SysML-textual-bnf.kebnf
 ```
 
-### Legacy Generate (Single Grammar)
-
-Generate from a single merged grammar file:
-
-```bash
-cargo run -- generate-legacy \
-  --grammar data/merged.kebnf \
-  --output generated
-```
-
 ## Development
 
 ```bash
