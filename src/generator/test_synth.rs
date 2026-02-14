@@ -77,6 +77,8 @@ pub enum RepMode {
     Multiple,
     /// Varied: Optional present, repetitions use different alternatives
     Varied,
+    /// Pairwise: Test pairwise combinations of alternatives in repetitions
+    Pairwise,
 }
 
 impl RepMode {
@@ -86,6 +88,7 @@ impl RepMode {
             RepMode::Populated => "populated",
             RepMode::Multiple => "multiple",
             RepMode::Varied => "varied",
+            RepMode::Pairwise => "pairwise",
         }
     }
 }
@@ -299,7 +302,7 @@ pub fn synthesize_with_base(
                     // Use appropriate inputs map based on mode
                     let inputs_to_use = match mode {
                         RepMode::Minimal => &inputs,
-                        RepMode::Populated | RepMode::Multiple => &inputs_populated,
+                        RepMode::Populated | RepMode::Multiple | RepMode::Pairwise => &inputs_populated,
                         RepMode::Varied => &inputs_varied,
                     };
                     
@@ -367,7 +370,7 @@ pub fn synthesize_with_base(
             for &mode in &modes {
                 let inputs_to_use = match mode {
                     RepMode::Minimal => &inputs,
-                    RepMode::Populated | RepMode::Multiple => &inputs_populated,
+                    RepMode::Populated | RepMode::Multiple | RepMode::Pairwise => &inputs_populated,
                     RepMode::Varied => &inputs_varied,
                 };
                 let input = synthesize_body(&rule.body, inputs_to_use, &grammar_rules, mode);
@@ -427,6 +430,16 @@ pub fn synthesize_with_base(
             }
         }
     }
+    
+    // Add pairwise combination tests for container rules
+    let pairwise_cases = synthesize_pairwise_containers(
+        &sorted,
+        &rule_map,
+        &grammar_rules,
+        &inputs_populated,
+    );
+    cases.extend(pairwise_cases);
+    
     cases
 }
 
@@ -572,6 +585,175 @@ fn fix_ambiguous_inputs(inputs: &mut HashMap<String, String>) {
 /// iteration and backtrack if needed.
 fn is_problematic_child_alt(_parent_rule: &str, _child_rule: &str, _child_alt_idx: usize) -> bool {
     false // Disabled - handled by improved GLR backtracking
+}
+
+/// Generate pairwise combination tests for container rules.
+///
+/// Container rules are rules that have repetitions (ZeroOrMore/OneOrMore) with
+/// alternative children. For example, `PackageBody` has `(PackageBodyElement)*`
+/// where `PackageBodyElement` has 4+ alternatives, each expanding to many more.
+///
+/// Instead of testing all O(n²) combinations, we generate tests that ensure
+/// every *pair* of element types appears together at least once. This provides
+/// good coverage while keeping test count manageable.
+fn synthesize_pairwise_containers(
+    sorted: &[String],
+    rule_map: &HashMap<&str, &crate::kebnf::types::Rule>,
+    grammar_rules: &HashSet<&str>,
+    inputs: &HashMap<String, String>,
+) -> Vec<TestCase> {
+    let mut cases = Vec::new();
+    
+    // Container rules: rules with body elements that can have many alternatives
+    // Map: body rule -> (child element rule, brace template)
+    // Template uses {} as placeholder for the content
+    let container_rules: Vec<(&str, &str, &str)> = vec![
+        ("PackageBody", "PackageBodyElement", "{ {} }"),
+        ("NamespaceBody", "NamespaceBodyElement", "{ {} }"),
+        ("TypeBody", "TypeBodyElement", "{ {} }"),
+        ("DefinitionBody", "DefinitionBodyItem", "{ {} }"),
+        ("UsageBody", "UsageBodyItem", "{ {} }"),
+    ];
+    
+    for (rule_name, child_rule, template) in &container_rules {
+        if !sorted.iter().any(|s| s == *rule_name) {
+            continue;
+        }
+        
+        // Get the child rule and its alternatives
+        let child_def = match rule_map.get(*child_rule) {
+            Some(r) => r,
+            None => continue,
+        };
+        
+        let child_alts = get_top_level_alternatives(&child_def.body);
+        if child_alts.len() <= 1 {
+            continue;
+        }
+        
+        // Generate inputs for each alternative
+        let alt_inputs: Vec<String> = child_alts.iter()
+            .map(|alt| synthesize_body(alt, inputs, grammar_rules, RepMode::Populated))
+            .filter(|s| !s.is_empty())
+            .collect();
+        
+        if alt_inputs.len() <= 1 {
+            continue;
+        }
+        
+        // Generate pairwise combinations
+        let pairs = generate_pairwise_indices(alt_inputs.len());
+        let dispatch_key = to_snake_case(rule_name);
+        
+        let mut seen = HashSet::new();
+        for (i, j) in pairs {
+            // Build the container with these two children directly in the braced template
+            let pair_content = format!("{} {}", &alt_inputs[i], &alt_inputs[j]);
+            let input = template.replace("{}", &pair_content);
+            
+            if !input.is_empty() && seen.insert(input.clone()) {
+                cases.push(TestCase {
+                    rule_name: rule_name.to_string(),
+                    dispatch_key: dispatch_key.clone(),
+                    input,
+                    alt_index: None,
+                    rep_mode: RepMode::Pairwise,
+                    child_alts: vec![
+                        (child_rule.to_string(), i),
+                        (child_rule.to_string(), j),
+                    ],
+                });
+            }
+        }
+    }
+    
+    // Also generate pairwise tests for Package with different DefinitionElement/UsageElement types
+    // This tests combinations like: Package containing PartDefinition + CaseDefinition
+    let deep_pairwise_rules: Vec<(&str, &str, &str)> = vec![
+        ("Package", "DefinitionElement", "package a1 {{ {} }}"),
+        ("Package", "UsageElement", "package a1 {{ {} }}"),
+    ];
+    
+    for (parent_rule, element_rule, template) in &deep_pairwise_rules {
+        if !sorted.iter().any(|s| s == *parent_rule) {
+            continue;
+        }
+        
+        let element_def = match rule_map.get(*element_rule) {
+            Some(r) => r,
+            None => continue,
+        };
+        
+        let element_alts = get_top_level_alternatives(&element_def.body);
+        if element_alts.len() <= 1 {
+            continue;
+        }
+        
+        // Generate inputs for each alternative
+        let alt_inputs: Vec<(usize, String)> = element_alts.iter()
+            .enumerate()
+            .map(|(idx, alt)| (idx, synthesize_body(alt, inputs, grammar_rules, RepMode::Populated)))
+            .filter(|(_, s)| !s.is_empty())
+            .collect();
+        
+        if alt_inputs.len() <= 1 {
+            continue;
+        }
+        
+        // For deep pairwise, limit to a representative sample to avoid explosion
+        // With 30 element types, full pairwise would be 435 pairs
+        // We sample ~50 pairs by using stride
+        let mut pairs = Vec::new();
+        let n = alt_inputs.len();
+        let stride = (n / 10).max(1);  // Sample ~10% of pairs
+        for i in 0..n {
+            for j in (i + 1)..n {
+                if (i + j) % stride == 0 {
+                    pairs.push((i, j));
+                }
+            }
+        }
+        
+        let dispatch_key = to_snake_case(parent_rule);
+        let mut seen = HashSet::new();
+        
+        for (i, j) in pairs {
+            let (idx_i, input_i) = &alt_inputs[i];
+            let (idx_j, input_j) = &alt_inputs[j];
+            
+            let pair_content = format!("{} {}", input_i, input_j);
+            let input = template.replace("{}", &pair_content);
+            
+            if !input.is_empty() && seen.insert(input.clone()) {
+                cases.push(TestCase {
+                    rule_name: parent_rule.to_string(),
+                    dispatch_key: dispatch_key.clone(),
+                    input,
+                    alt_index: None,
+                    rep_mode: RepMode::Pairwise,
+                    child_alts: vec![
+                        (element_rule.to_string(), *idx_i),
+                        (element_rule.to_string(), *idx_j),
+                    ],
+                });
+            }
+        }
+    }
+    
+    cases
+}
+
+/// Generate pairwise indices for n elements.
+/// Returns pairs (i, j) where i < j, ensuring every pair is covered.
+/// For n=4: [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)] = 6 pairs
+fn generate_pairwise_indices(n: usize) -> Vec<(usize, usize)> {
+    let mut pairs = Vec::new();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            pairs.push((i, j));
+        }
+    }
+    pairs
 }
 
 /// Extract top-level alternatives from a rule body.
@@ -895,7 +1077,7 @@ fn synthesize_body(
         RuleBody::Optional(inner) => {
             match mode {
                 RepMode::Minimal => String::new(),
-                RepMode::Populated | RepMode::Multiple | RepMode::Varied => {
+                RepMode::Populated | RepMode::Multiple | RepMode::Varied | RepMode::Pairwise => {
                     synthesize_body(inner, inputs, grammar_rules, mode)
                 }
             }
@@ -904,7 +1086,7 @@ fn synthesize_body(
         RuleBody::ZeroOrMore(inner) => {
             match mode {
                 RepMode::Minimal => String::new(),
-                RepMode::Populated => {
+                RepMode::Populated | RepMode::Pairwise => {
                     synthesize_body(inner, inputs, grammar_rules, mode)
                 }
                 RepMode::Multiple => {
@@ -925,7 +1107,7 @@ fn synthesize_body(
 
         RuleBody::OneOrMore(inner) => {
             match mode {
-                RepMode::Minimal | RepMode::Populated => {
+                RepMode::Minimal | RepMode::Populated | RepMode::Pairwise => {
                     synthesize_body(inner, inputs, grammar_rules, mode)
                 }
                 RepMode::Multiple => {
@@ -1363,7 +1545,7 @@ fn synthesize_body_with_expectations(
         RuleBody::Optional(inner) => {
             match mode {
                 RepMode::Minimal => String::new(),
-                RepMode::Populated | RepMode::Multiple | RepMode::Varied => {
+                RepMode::Populated | RepMode::Multiple | RepMode::Varied | RepMode::Pairwise => {
                     synthesize_body_with_expectations(inner, inputs, grammar_rules, mode, fields)
                 }
             }
@@ -1372,7 +1554,7 @@ fn synthesize_body_with_expectations(
         RuleBody::ZeroOrMore(inner) => {
             match mode {
                 RepMode::Minimal => String::new(),
-                RepMode::Populated => {
+                RepMode::Populated | RepMode::Pairwise => {
                     synthesize_body_with_expectations(inner, inputs, grammar_rules, mode, fields)
                 }
                 RepMode::Multiple | RepMode::Varied => {
@@ -1386,7 +1568,7 @@ fn synthesize_body_with_expectations(
         
         RuleBody::OneOrMore(inner) => {
             match mode {
-                RepMode::Minimal | RepMode::Populated => {
+                RepMode::Minimal | RepMode::Populated | RepMode::Pairwise => {
                     synthesize_body_with_expectations(inner, inputs, grammar_rules, mode, fields)
                 }
                 RepMode::Multiple | RepMode::Varied => {
