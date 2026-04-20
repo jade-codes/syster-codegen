@@ -12297,9 +12297,45 @@ impl Parser {
         _result
     }
 
-    /// Stub for undefined rule `InvocationTypeMember`
+    /// Parse `InvocationTypeMember` (spec 2026-03: replaces InstantiatedTypeMember in FunctionOperationExpression)
     fn parse_invocation_type_member(&mut self) -> Result<InvocationTypeMember> {
-        Err(ParseError { message: "rule InvocationTypeMember is not defined".into(), span: self.current_span() })
+        let _entry_pos = self.pos;
+        if !self.enter_rule("InvocationTypeMember") {
+            return Err(ParseError { message: "left-recursive entry into InvocationTypeMember".into(), span: self.current_span() });
+        }
+        self.push_rule_context("InvocationTypeMember", _entry_pos);
+        let _result: Result<InvocationTypeMember> = (|| {
+        let start = self.current_span();
+        let saved_alt = self.save();
+        let mut best_alt_pos: Option<usize> = None;
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_instantiated_type_reference()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_owned_feature_chain_member()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        match best_alt_pos {
+            Some(pos) => self.pos = pos,
+            None => return Err(ParseError { message: "no alternative matched".into(), span: self.current_span() }),
+        }
+        let end = self.current_span();
+        Ok(InvocationTypeMember {
+            span: start.merge(end),
+        })
+        })();
+        self.pop_rule_context();
+        self.leave_rule(_entry_pos, "InvocationTypeMember");
+        _result
     }
 
     /// Dispatch to a parse function by rule name (snake_case).

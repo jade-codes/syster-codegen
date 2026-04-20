@@ -23124,19 +23124,111 @@ impl Parser {
         _result
     }
 
-    /// Stub for undefined rule `FilterPackageImport`
+    /// Parse `FilterPackageImport` (spec 2026-03: replaces ImportDeclaration in FilterPackage)
     fn parse_filter_package_import(&mut self) -> Result<FilterPackageImport> {
-        Err(ParseError { message: "rule FilterPackageImport is not defined".into(), span: self.current_span() })
+        let _entry_pos = self.pos;
+        if !self.enter_rule("FilterPackageImport") {
+            return Err(ParseError { message: "left-recursive entry into FilterPackageImport".into(), span: self.current_span() });
+        }
+        self.push_rule_context("FilterPackageImport", _entry_pos);
+        let _result: Result<FilterPackageImport> = (|| {
+        let start = self.current_span();
+        let alt_saved = self.save();
+        let mut best_pos: Option<usize> = None;
+        self.restore(alt_saved);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_membership_import()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.pos;
+            if best_pos.map_or(true, |b| end > b) { best_pos = Some(end); }
+        }
+        self.restore(alt_saved);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_namespace_import()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.pos;
+            if best_pos.map_or(true, |b| end > b) { best_pos = Some(end); }
+        }
+        match best_pos {
+            Some(pos) => self.pos = pos,
+            None => return Err(ParseError { message: "no alternative matched".into(), span: self.current_span() }),
+        }
+        let end = self.current_span();
+        Ok(FilterPackageImport {
+            span: start.merge(end),
+        })
+        })();
+        self.pop_rule_context();
+        self.leave_rule(_entry_pos, "FilterPackageImport");
+        _result
     }
 
-    /// Stub for undefined rule `InvocationTypeMember`
+    /// Parse `InvocationTypeMember` (spec 2026-03: replaces InstantiatedTypeMember in FunctionOperationExpression)
     fn parse_invocation_type_member(&mut self) -> Result<InvocationTypeMember> {
-        Err(ParseError { message: "rule InvocationTypeMember is not defined".into(), span: self.current_span() })
+        let _entry_pos = self.pos;
+        if !self.enter_rule("InvocationTypeMember") {
+            return Err(ParseError { message: "left-recursive entry into InvocationTypeMember".into(), span: self.current_span() });
+        }
+        self.push_rule_context("InvocationTypeMember", _entry_pos);
+        let _result: Result<InvocationTypeMember> = (|| {
+        let start = self.current_span();
+        let saved_alt = self.save();
+        let mut best_alt_pos: Option<usize> = None;
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_instantiated_type_reference()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_owned_feature_chain_member()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        match best_alt_pos {
+            Some(pos) => self.pos = pos,
+            None => return Err(ParseError { message: "no alternative matched".into(), span: self.current_span() }),
+        }
+        let end = self.current_span();
+        Ok(InvocationTypeMember {
+            span: start.merge(end),
+        })
+        })();
+        self.pop_rule_context();
+        self.leave_rule(_entry_pos, "InvocationTypeMember");
+        _result
     }
 
-    /// Stub for undefined rule `CalculationUsageDeclaration`
+    /// Parse `CalculationUsageDeclaration` (spec 2026-03: replaces ConstraintUsageDeclaration in FramedConcernUsage)
     fn parse_calculation_usage_declaration(&mut self) -> Result<CalculationUsageDeclaration> {
-        Err(ParseError { message: "rule CalculationUsageDeclaration is not defined".into(), span: self.current_span() })
+        let _entry_pos = self.pos;
+        if !self.enter_rule("CalculationUsageDeclaration") {
+            return Err(ParseError { message: "left-recursive entry into CalculationUsageDeclaration".into(), span: self.current_span() });
+        }
+        self.push_rule_context("CalculationUsageDeclaration", _entry_pos);
+        let _result: Result<CalculationUsageDeclaration> = (|| {
+        let start = self.current_span();
+        self.parse_usage_declaration()?;
+        let saved = self.save();
+        let _: std::result::Result<(), ParseError> = (|| {
+            self.parse_value_part()?;
+            Ok(())
+        })().map_err(|e| { self.restore(saved); e });
+        let end = self.current_span();
+        Ok(CalculationUsageDeclaration {
+            span: start.merge(end),
+        })
+        })();
+        self.pop_rule_context();
+        self.leave_rule(_entry_pos, "CalculationUsageDeclaration");
+        _result
     }
 
     /// Dispatch to a parse function by rule name (snake_case).
