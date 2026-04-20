@@ -1133,7 +1133,7 @@ SelectExpression =
 
 FunctionOperationExpression : InvocationExpression =
     ownedRelationship += PrimaryArgumentMember '->'
-    ownedRelationship += InstantiatedTypeMember
+    ownedRelationship += InvocationTypeMember
     ( ownedRelationship += BodyArgumentMember
     | ownedRelationship += FunctionReferenceArgumentMember
     | ArgumentList )
