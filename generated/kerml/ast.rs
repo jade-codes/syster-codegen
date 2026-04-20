@@ -2212,7 +2212,7 @@ pub enum FunctionOperationExpressionOwnedRelationshipMember {
     BodyArgumentMember(Box<BodyArgumentMember>),
     EmptyResultMember(Box<EmptyResultMember>),
     FunctionReferenceArgumentMember(Box<FunctionReferenceArgumentMember>),
-    InstantiatedTypeMember(Box<InstantiatedTypeMember>),
+    InvocationTypeMember(Box<InvocationTypeMember>),
     PrimaryArgumentMember(Box<PrimaryArgumentMember>),
 }
 
@@ -3104,6 +3104,16 @@ impl AstNode for ElementFilterMember {
     fn span(&self) -> Span { self.span }
 }
 
+/// `InvocationTypeMember`
+#[derive(Debug, Clone)]
+pub struct InvocationTypeMember {
+    pub span: Span,
+}
+
+impl AstNode for InvocationTypeMember {
+    fn span(&self) -> Span { self.span }
+}
+
 // Top-level node wrapper
 
 /// Wraps every AST node type so a single parse dispatch can
@@ -3369,6 +3379,7 @@ pub enum AstNodeKind {
     PackageDeclaration(Box<PackageDeclaration>),
     PackageBody(Box<PackageBody>),
     ElementFilterMember(Box<ElementFilterMember>),
+    InvocationTypeMember(Box<InvocationTypeMember>),
 }
 
 impl AstNodeKind {
@@ -3634,6 +3645,7 @@ impl AstNodeKind {
             AstNodeKind::PackageDeclaration(v) => v.span,
             AstNodeKind::PackageBody(v) => v.span,
             AstNodeKind::ElementFilterMember(v) => v.span,
+            AstNodeKind::InvocationTypeMember(v) => v.span,
         }
     }
 
@@ -3899,6 +3911,7 @@ impl AstNodeKind {
             AstNodeKind::PackageDeclaration(_) => "PackageDeclaration",
             AstNodeKind::PackageBody(_) => "PackageBody",
             AstNodeKind::ElementFilterMember(_) => "ElementFilterMember",
+            AstNodeKind::InvocationTypeMember(_) => "InvocationTypeMember",
         }
     }
 }
