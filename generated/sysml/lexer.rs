@@ -302,6 +302,14 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
+        if remaining.starts_with(":>>") {
+            for _ in 0..3 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::ColonGtGt,
+                text: ":>>".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
         if remaining.starts_with("::>") {
             for _ in 0..3 { self.advance(); }
             return Some(Token {
@@ -318,19 +326,115 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
-        if remaining.starts_with(":>>") {
-            for _ in 0..3 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::ColonGtGt,
-                text: ":>>".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
         if remaining.starts_with("//*") {
             for _ in 0..3 { self.advance(); }
             return Some(Token {
                 kind: TokenKind::Punct2F2F2A,
                 text: "//*".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("<=") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::LtEq,
+                text: "<=".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("??") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::QuestionQuestion,
+                text: "??".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("@@") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Punct4040,
+                text: "@@".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("//") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Punct2F2F,
+                text: "//".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("*/") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Punct2A2F,
+                text: "*/".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(">=") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::GtEq,
+                text: ">=".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("==") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::EqEq,
+                text: "==".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("->") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Arrow,
+                text: "->".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("**") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::StarStar,
+                text: "**".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("!=") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::BangEq,
+                text: "!=".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(".?") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::DotQuestion,
+                text: ".?".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("=>") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::FatArrow,
+                text: "=>".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("/*") {
+            for _ in 0..2 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Punct2F2A,
+                text: "/*".to_string(),
                 span: Span { start, end: self.pos },
             });
         }
@@ -350,19 +454,11 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
-        if remaining.starts_with("@@") {
+        if remaining.starts_with("::") {
             for _ in 0..2 { self.advance(); }
             return Some(Token {
-                kind: TokenKind::Punct4040,
-                text: "@@".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("*/") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Punct2A2F,
-                text: "*/".to_string(),
+                kind: TokenKind::ColonColon,
+                text: "::".to_string(),
                 span: Span { start, end: self.pos },
             });
         }
@@ -374,251 +470,11 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
-        if remaining.starts_with("??") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::QuestionQuestion,
-                text: "??".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("//") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Punct2F2F,
-                text: "//".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("==") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::EqEq,
-                text: "==".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("<=") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::LtEq,
-                text: "<=".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("->") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Arrow,
-                text: "->".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(".?") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::DotQuestion,
-                text: ".?".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(">=") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::GtEq,
-                text: ">=".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("::") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::ColonColon,
-                text: "::".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("!=") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::BangEq,
-                text: "!=".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("/*") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Punct2F2A,
-                text: "/*".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("**") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::StarStar,
-                text: "**".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("=>") {
-            for _ in 0..2 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::FatArrow,
-                text: "=>".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("%") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Percent,
-                text: "%".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(">") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Gt,
-                text: ">".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("+") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Plus,
-                text: "+".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("]") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::RBracket,
-                text: "]".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("(") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::LParen,
-                text: "(".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(":") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Colon,
-                text: ":".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("@") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::AtSign,
-                text: "@".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(")") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::RParen,
-                text: ")".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("[") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::LBracket,
-                text: "[".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with(";") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Semi,
-                text: ";".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("$") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Dollar,
-                text: "$".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("#") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Hash,
-                text: "#".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("?") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Question,
-                text: "?".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("*") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Star,
-                text: "*".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("/") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Slash,
-                text: "/".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
         if remaining.starts_with("|") {
             for _ in 0..1 { self.advance(); }
             return Some(Token {
                 kind: TokenKind::Pipe,
                 text: "|".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("}") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::RBrace,
-                text: "}".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("&") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Amp,
-                text: "&".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("<") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Lt,
-                text: "<".to_string(),
                 span: Span { start, end: self.pos },
             });
         }
@@ -630,27 +486,99 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
+        if remaining.starts_with("?") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Question,
+                text: "?".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(".") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Dot,
+                text: ".".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("*") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Star,
+                text: "*".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("+") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Plus,
+                text: "+".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("$") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Dollar,
+                text: "$".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("<") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Lt,
+                text: "<".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("#") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Hash,
+                text: "#".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(">") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Gt,
+                text: ">".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("[") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::LBracket,
+                text: "[".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(":") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Colon,
+                text: ":".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("%") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Percent,
+                text: "%".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
         if remaining.starts_with(",") {
             for _ in 0..1 { self.advance(); }
             return Some(Token {
                 kind: TokenKind::Comma,
                 text: ",".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("{") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::LBrace,
-                text: "{".to_string(),
-                span: Span { start, end: self.pos },
-            });
-        }
-        if remaining.starts_with("-") {
-            for _ in 0..1 { self.advance(); }
-            return Some(Token {
-                kind: TokenKind::Minus,
-                text: "-".to_string(),
                 span: Span { start, end: self.pos },
             });
         }
@@ -662,6 +590,22 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
+        if remaining.starts_with("/") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Slash,
+                text: "/".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("}") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::RBrace,
+                text: "}".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
         if remaining.starts_with("^") {
             for _ in 0..1 { self.advance(); }
             return Some(Token {
@@ -670,11 +614,67 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos },
             });
         }
-        if remaining.starts_with(".") {
+        if remaining.starts_with("-") {
             for _ in 0..1 { self.advance(); }
             return Some(Token {
-                kind: TokenKind::Dot,
-                text: ".".to_string(),
+                kind: TokenKind::Minus,
+                text: "-".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("]") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::RBracket,
+                text: "]".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("&") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Amp,
+                text: "&".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(")") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::RParen,
+                text: ")".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with(";") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::Semi,
+                text: ";".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("@") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::AtSign,
+                text: "@".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("{") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::LBrace,
+                text: "{".to_string(),
+                span: Span { start, end: self.pos },
+            });
+        }
+        if remaining.starts_with("(") {
+            for _ in 0..1 { self.advance(); }
+            return Some(Token {
+                kind: TokenKind::LParen,
+                text: "(".to_string(),
                 span: Span { start, end: self.pos },
             });
         }

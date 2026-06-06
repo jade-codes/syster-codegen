@@ -166,7 +166,7 @@ NamespaceImport =
       { ownedRelatedElement += importedNamespace }
 
 FilterPackage : Package =
-    ownedRelationship += ImportDeclaration
+    ownedRelationship += FilterPackageImport
     ( ownedRelationship += FilterPackageMember )+
 
 FilterPackageMember : ElementFilterMembership =
@@ -1443,7 +1443,7 @@ FramedConcernUsage : ConcernUsage =
       FeatureSpecializationPart? CalculationBody
     | ( UsageExtensionKeyword* 'concern'
       | UsageExtensionKeyword+ )
-      ConstraintUsageDeclaration CalculationBody
+      CalculationUsageDeclaration CalculationBody
 
 ActorMember : ActorMembership =
     MemberPrefix ownedRelatedElement += ActorUsage

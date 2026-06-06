@@ -1345,14 +1345,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into ImportDeclaration".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_1 != Some(_entry_pos);
+        let is_head = self.lr_head_2 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "ImportDeclaration"));
         self.push_rule_context("ImportDeclaration", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_1;
-            self.lr_head_1 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_2;
+            self.lr_head_2 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_import_declaration_body();
@@ -1380,12 +1380,12 @@ impl Parser {
                 self.lr_import_declaration = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ImportDeclaration"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ImportDeclaration"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 seed
             }
         } else {
@@ -1492,14 +1492,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into NamespaceImport".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_1 != Some(_entry_pos);
+        let is_head = self.lr_head_2 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "NamespaceImport"));
         self.push_rule_context("NamespaceImport", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_1;
-            self.lr_head_1 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_2;
+            self.lr_head_2 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_namespace_import_body();
@@ -1527,12 +1527,12 @@ impl Parser {
                 self.lr_namespace_import = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "NamespaceImport"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "NamespaceImport"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 seed
             }
         } else {
@@ -1592,14 +1592,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into FilterPackage".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_1 != Some(_entry_pos);
+        let is_head = self.lr_head_2 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "FilterPackage"));
         self.push_rule_context("FilterPackage", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_1;
-            self.lr_head_1 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_2;
+            self.lr_head_2 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_filter_package_body();
@@ -1627,12 +1627,12 @@ impl Parser {
                 self.lr_filter_package = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "FilterPackage"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "FilterPackage"));
-                self.lr_head_1 = prev_head_pos;
+                self.lr_head_2 = prev_head_pos;
                 seed
             }
         } else {
@@ -6687,14 +6687,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into OwnedExpression".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "OwnedExpression"));
         self.push_rule_context("OwnedExpression", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_owned_expression_body();
@@ -6722,12 +6722,12 @@ impl Parser {
                 self.lr_owned_expression = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "OwnedExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "OwnedExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -6811,14 +6811,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into ConditionalBinaryOperatorExpression".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "ConditionalBinaryOperatorExpression"));
         self.push_rule_context("ConditionalBinaryOperatorExpression", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_conditional_binary_operator_expression_body();
@@ -6846,12 +6846,12 @@ impl Parser {
                 self.lr_conditional_binary_operator_expression = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ConditionalBinaryOperatorExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ConditionalBinaryOperatorExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -6958,14 +6958,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into BinaryOperatorExpression".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "BinaryOperatorExpression"));
         self.push_rule_context("BinaryOperatorExpression", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_binary_operator_expression_body();
@@ -6993,12 +6993,12 @@ impl Parser {
                 self.lr_binary_operator_expression = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "BinaryOperatorExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "BinaryOperatorExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -7403,14 +7403,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into ClassificationExpression".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "ClassificationExpression"));
         self.push_rule_context("ClassificationExpression", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_classification_expression_body();
@@ -7438,12 +7438,12 @@ impl Parser {
                 self.lr_classification_expression = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ClassificationExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ClassificationExpression"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -7611,14 +7611,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into ArgumentMember".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "ArgumentMember"));
         self.push_rule_context("ArgumentMember", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_argument_member_body();
@@ -7646,12 +7646,12 @@ impl Parser {
                 self.lr_argument_member = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ArgumentMember"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ArgumentMember"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -7692,14 +7692,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into Argument".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "Argument"));
         self.push_rule_context("Argument", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_argument_body();
@@ -7727,12 +7727,12 @@ impl Parser {
                 self.lr_argument = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "Argument"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "Argument"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -7773,14 +7773,14 @@ impl Parser {
             return Err(ParseError { message: "left-recursive entry into ArgumentValue".into(), span: self.current_span() });
         }
 
-        let is_head = self.lr_head_2 != Some(_entry_pos);
+        let is_head = self.lr_head_1 != Some(_entry_pos);
         self.visiting.insert((_entry_pos, "ArgumentValue"));
         self.push_rule_context("ArgumentValue", _entry_pos);
 
         if is_head {
             // We are the LR head at this position
-            let prev_head_pos = self.lr_head_2;
-            self.lr_head_2 = Some(_entry_pos);
+            let prev_head_pos = self.lr_head_1;
+            self.lr_head_1 = Some(_entry_pos);
 
             // Seed phase
             let seed = self.parse_argument_value_body();
@@ -7808,12 +7808,12 @@ impl Parser {
                 self.lr_argument_value = None;
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ArgumentValue"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 Ok(best)
             } else {
                 self.pop_rule_context();
                 self.visiting.remove(&(_entry_pos, "ArgumentValue"));
-                self.lr_head_2 = prev_head_pos;
+                self.lr_head_1 = prev_head_pos;
                 seed
             }
         } else {
@@ -9365,8 +9365,8 @@ impl Parser {
         let v = self.parse_primary_argument_member()?;
         owned_relationship.push(FunctionOperationExpressionOwnedRelationshipMember::PrimaryArgumentMember(Box::new(v)));
         self.expect(TokenKind::Arrow)?;
-        let v = self.parse_instantiated_type_member()?;
-        owned_relationship.push(FunctionOperationExpressionOwnedRelationshipMember::InstantiatedTypeMember(Box::new(v)));
+        let v = self.parse_invocation_type_member()?;
+        owned_relationship.push(FunctionOperationExpressionOwnedRelationshipMember::InvocationTypeMember(Box::new(v)));
         let saved_alt = self.save();
         let mut best_alt_pos: Option<usize> = None;
         self.restore(saved_alt);
@@ -12294,6 +12294,47 @@ impl Parser {
         })();
         self.pop_rule_context();
         self.leave_rule(_entry_pos, "ElementFilterMember");
+        _result
+    }
+
+    /// Parse `InvocationTypeMember` (spec 2026-03: replaces InstantiatedTypeMember in FunctionOperationExpression)
+    fn parse_invocation_type_member(&mut self) -> Result<InvocationTypeMember> {
+        let _entry_pos = self.pos;
+        if !self.enter_rule("InvocationTypeMember") {
+            return Err(ParseError { message: "left-recursive entry into InvocationTypeMember".into(), span: self.current_span() });
+        }
+        self.push_rule_context("InvocationTypeMember", _entry_pos);
+        let _result: Result<InvocationTypeMember> = (|| {
+        let start = self.current_span();
+        let saved_alt = self.save();
+        let mut best_alt_pos: Option<usize> = None;
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_instantiated_type_reference()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        self.restore(saved_alt);
+        if (|| -> std::result::Result<(), ParseError> {
+            self.parse_owned_feature_chain_member()?;
+            Ok(())
+        })().is_ok() {
+            let end = self.save();
+            if best_alt_pos.map_or(true, |b| end > b) { best_alt_pos = Some(end); }
+        }
+        match best_alt_pos {
+            Some(pos) => self.pos = pos,
+            None => return Err(ParseError { message: "no alternative matched".into(), span: self.current_span() }),
+        }
+        let end = self.current_span();
+        Ok(InvocationTypeMember {
+            span: start.merge(end),
+        })
+        })();
+        self.pop_rule_context();
+        self.leave_rule(_entry_pos, "InvocationTypeMember");
         _result
     }
 
